@@ -1,0 +1,13 @@
+services:
+  agent:
+    # Restricted profile: no sudo (no-new-privileges) and no Docker host access.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      - agent-work-sandbox-lite:/workspaces/work
+    environment:
+      GH_CONFIG_DIR: /workspaces/work/.config/gh
+      GIT_CONFIG_GLOBAL: /workspaces/work/.gitconfig
+

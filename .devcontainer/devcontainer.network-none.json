@@ -1,0 +1,14 @@
+{
+    "name":  "ai-agent-sandbox (restricted + network none)",
+    "dockerComposeFile": [
+        "docker-compose.yml",
+        "docker-compose.restricted.yml",
+        "docker-compose.offline.yml"
+    ],
+    "service": "agent",
+    "workspaceFolder":  "/workspaces/work",
+    "remoteUser":  "vscode",
+    "updateRemoteUserUID":  false,
+    "postCreateCommand":  "bash /usr/local/share/agent-sandbox/postCreateCommand.sh",
+    "postStartCommand":  "bash /usr/local/share/agent-sandbox/postCreateCommand.sh"
+}

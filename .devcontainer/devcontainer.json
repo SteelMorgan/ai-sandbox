@@ -1,0 +1,19 @@
+{
+    "name":  "ai-agent-sandbox (lite: sudo, no docker by default)",
+    "dockerComposeFile": [
+        "docker-compose.yml"
+    ],
+    "service": "agent",
+    "workspaceFolder":  "/workspaces/work",
+    "remoteUser":  "vscode",
+    "updateRemoteUserUID":  false,
+    "postCreateCommand":  "bash /usr/local/share/agent-sandbox/postCreateCommand.sh",
+    "postStartCommand":  "bash /usr/local/share/agent-sandbox/postCreateCommand.sh",
+    "customizations":  {
+        "vscode":  {
+            "settings":  {
+                "terminal.integrated.defaultProfile.linux":  "bash"
+            }
+        }
+    }
+}

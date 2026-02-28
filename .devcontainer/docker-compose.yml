@@ -1,0 +1,35 @@
+services:
+  agent:
+    container_name: ai-agent-sandbox
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # Use root as the container process user so entrypoint can chmod the volume.
+    user: "0:0"
+    volumes:
+      - agent-work-sandbox-lite:/workspaces/work
+    environment:
+      GH_CONFIG_DIR: /workspaces/work/.config/gh
+      GIT_CONFIG_GLOBAL: /workspaces/work/.gitconfig
+    env_file:
+      - .env
+    secrets:
+      - cc_api_key
+      - github_token
+    # Default: allow sudo. (Restricted profiles can add no-new-privileges.)
+    # pids_limit 4096: Electron/Chromium spawn many processes; 512 caused
+    # "pthread_create: Resource temporarily unavailable" / "fork: retry".
+    pids_limit: 4096
+    mem_limit: 8g
+    cpus: "4.0"
+
+volumes:
+  agent-work-sandbox-lite:
+    external: true
+
+secrets:
+  cc_api_key:
+    file: ../secrets/cc_api_key
+  github_token:
+    file: ../secrets/github_token
+

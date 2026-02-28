@@ -1,0 +1,5 @@
+﻿services:
+  agent:
+    container_name: ai-agent-sandbox-offline
+    network_mode: "none"
+
