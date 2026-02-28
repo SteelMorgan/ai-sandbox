@@ -31,7 +31,15 @@ fi
 bash /usr/local/share/agent-sandbox/gh-auth-bootstrap.sh || true
 
 # Codex bootstrap (idempotent). Uses /run/secrets/cc_api_key when present.
-bash /usr/local/share/agent-sandbox/codex-bootstrap.sh || bash /workspaces/work/.devcontainer/codex-bootstrap.sh || true
+if [[ "${CUSTOM_OPENAI_ENABLED:-0}" == "1" ]]; then
+  if [[ -f "/workspaces/work/.devcontainer/codex-bootstrap.sh" ]]; then
+    bash /workspaces/work/.devcontainer/codex-bootstrap.sh || bash /usr/local/share/agent-sandbox/codex-bootstrap.sh || true
+  else
+    bash /usr/local/share/agent-sandbox/codex-bootstrap.sh || true
+  fi
+else
+  echo "[postCreate] CUSTOM_OPENAI_ENABLED is not 1 — skipping Codex custom backend bootstrap."
+fi
 
 # Configure Claude Code status line from local tool copied into image.
 apply_claude_statusline() {
@@ -72,11 +80,11 @@ NODEJS
 # (Still bypassable by a determined user; this is an anti-footgun.)
 
 # Configure Claude Code for custom backend if helper + secret are available.
-if [[ "${CC_HELPER_ENABLED:-0}" == "1" ]]; then
+if [[ "${CUSTOM_OPENAI_ENABLED:-0}" == "1" ]]; then
   helper="/workspaces/work/.devcontainer/cc-custom-helper.mjs"
   helper_fallback="/usr/local/share/agent-sandbox/cc-custom-helper.mjs"
   api_key_file="/run/secrets/cc_api_key"
-  base_url="${CC_HELPER_BASE_URL:-}"
+  base_url="${OPENAI_BASE_URL:-}"
   validate_mode="${CC_HELPER_VALIDATE_MODE:-anthropic}"
   model="${CC_HELPER_MODEL:-sonnet}"
   timeout_ms="${CC_HELPER_API_TIMEOUT_MS:-30000}"
@@ -86,20 +94,20 @@ if [[ "${CC_HELPER_ENABLED:-0}" == "1" ]]; then
     if [[ -f "$helper_fallback" ]]; then
       helper="$helper_fallback"
     else
-      echo "[WARN] CC helper is enabled, but helper file is missing: $helper"
+      echo "[WARN] CUSTOM_OPENAI_ENABLED=1, but helper file is missing: $helper"
       echo "[WARN] Skipping helper setup."
       exit 0
     fi
   fi
 
   if [[ ! -s "$api_key_file" ]]; then
-    echo "[WARN] CC helper is enabled, but secret is missing/empty: $api_key_file"
+    echo "[WARN] CUSTOM_OPENAI_ENABLED=1, but secret is missing/empty: $api_key_file"
     echo "[WARN] Fill secrets/.env (CC_API_KEY), run scripts/prepare-secrets.*, then rebuild/reopen container."
     exit 0
   fi
 
   if [[ -z "$base_url" ]]; then
-    echo "[WARN] CC helper is enabled, but CC_HELPER_BASE_URL is empty."
+    echo "[WARN] CUSTOM_OPENAI_ENABLED=1, but OPENAI_BASE_URL is empty."
     echo "[WARN] Set it in .devcontainer/.env and rerun."
     exit 0
   fi

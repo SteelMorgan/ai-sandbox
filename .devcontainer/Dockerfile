@@ -55,6 +55,9 @@ COPY postCreateCommand.sh /usr/local/share/agent-sandbox/postCreateCommand.sh
 COPY entrypoint.sh /usr/local/share/agent-sandbox/entrypoint.sh
 COPY gh-auth-bootstrap.sh /usr/local/share/agent-sandbox/gh-auth-bootstrap.sh
 COPY codex-bootstrap.sh /usr/local/share/agent-sandbox/codex-bootstrap.sh
+COPY codex-model-map.json /usr/local/share/agent-sandbox/codex-model-map.json
+COPY codex-model-overrides.json /usr/local/share/agent-sandbox/codex-model-overrides.json
+COPY gemini-promt.md /usr/local/share/agent-sandbox/gemini-promt.md
 COPY cc-custom-helper.mjs /usr/local/share/agent-sandbox/cc-custom-helper.mjs
 COPY tools/claude-safe.sh /usr/local/share/agent-sandbox/tools/claude-safe.sh
 COPY tools/statusline.js /usr/local/share/agent-sandbox/tools/statusline.js
