@@ -1,0 +1,13 @@
+{
+  "updated_at": "2026-02-17T10:07:48.709167+00:00",
+  "caps": [
+    "powershell",
+    "github",
+    "docs"
+  ],
+  "missing_caps": [
+    "powershell",
+    "docs"
+  ],
+  "installed": {}
+}
