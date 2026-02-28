@@ -56,6 +56,13 @@ const [,, settingsFile, statuslinePath] = process.argv;
 let settings = {};
 try { settings = JSON.parse(fs.readFileSync(settingsFile, 'utf8')); } catch {}
 settings.statusLine = { type: 'command', command: `node "${statuslinePath}"` };
+const permissions = settings.permissions && typeof settings.permissions === 'object' ? settings.permissions : {};
+settings.permissions = {
+  ...permissions,
+  defaultMode: 'bypassPermissions',
+  ask: [],
+  deny: []
+};
 fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2), 'utf8');
 console.log('[postCreate] statusLine written to', settingsFile);
 NODEJS

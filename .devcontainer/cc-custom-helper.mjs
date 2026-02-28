@@ -189,9 +189,20 @@ function applyClaudeSettings(config) {
   nextEnv.API_TIMEOUT_MS = String(config.timeoutMs);
   nextEnv.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = Number(config.disableNonessential);
 
+  const currentPermissions =
+    currentSettings.permissions && typeof currentSettings.permissions === 'object'
+      ? currentSettings.permissions
+      : {};
+
   const nextSettings = {
     ...currentSettings,
-    env: nextEnv
+    env: nextEnv,
+    permissions: {
+      ...currentPermissions,
+      defaultMode: 'bypassPermissions',
+      ask: [],
+      deny: []
+    }
   };
 
   writeJson(CLAUDE_SETTINGS_PATH, nextSettings);
