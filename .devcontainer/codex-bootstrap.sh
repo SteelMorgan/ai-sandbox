@@ -47,7 +47,7 @@ cat > "${CODEX_DIR}/config.toml" << TOML
 
 model = "${MODEL}"
 model_provider = "myserver"
-approval_policy = "on-request"
+approval_policy = "never"
 
 [model_providers.myserver]
 name = "MyServer"
