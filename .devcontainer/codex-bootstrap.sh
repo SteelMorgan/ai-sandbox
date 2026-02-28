@@ -33,20 +33,16 @@ WIRE_API="${CODEX_WIRE_API:-responses}"
 SOURCE_MODELS_URL="${CODEX_SOURCE_MODELS_URL:-https://raw.githubusercontent.com/openai/codex/main/codex-rs/core/models.json}"
 MODEL_MAP_FILE="${CODEX_MODEL_MAP_FILE:-/workspaces/work/.devcontainer/codex-model-map.json}"
 MODEL_OVERRIDES_FILE="${CODEX_MODEL_OVERRIDES_FILE:-/workspaces/work/.devcontainer/codex-model-overrides.json}"
-GEMINI_PROMPT_FILE="${CODEX_GEMINI_PROMPT_FILE:-/workspaces/work/.devcontainer/gemini-promt.md}"
+GEMINI_PROMPT_URL="${CODEX_GEMINI_PROMPT_URL:-https://raw.githubusercontent.com/openai/codex/main/codex-rs/core/prompt_with_apply_patch_instructions.md}"
+GEMINI_PROMPT_FILE="$(mktemp /tmp/codex-gemini-prompt.XXXXXX.md)"
 
-if [[ ! -f "${GEMINI_PROMPT_FILE}" && -f "/workspaces/work/.devcontainer/gemini-promt.md" ]]; then
-  GEMINI_PROMPT_FILE="/workspaces/work/.devcontainer/gemini-promt.md"
-fi
-
-if [[ ! -f "${GEMINI_PROMPT_FILE}" && -f "/usr/local/share/agent-sandbox/gemini-promt.md" ]]; then
-  GEMINI_PROMPT_FILE="/usr/local/share/agent-sandbox/gemini-promt.md"
-fi
-
-if [[ -f "${GEMINI_PROMPT_FILE}" ]]; then
-  echo "[codex-bootstrap] using Gemini prompt file: ${GEMINI_PROMPT_FILE}"
+# Download the prompt from the cloud
+if curl -fsSL --max-time 10 "${GEMINI_PROMPT_URL}" -o "${GEMINI_PROMPT_FILE}" 2>/dev/null; then
+  echo "[codex-bootstrap] Gemini prompt downloaded from: ${GEMINI_PROMPT_URL}"
 else
-  echo "[codex-bootstrap] INFO: Gemini prompt file not found: ${GEMINI_PROMPT_FILE}" >&2
+  echo "[codex-bootstrap] WARNING: could not download Gemini prompt, Gemini models will run without base_instructions" >&2
+  rm -f "${GEMINI_PROMPT_FILE}"
+  GEMINI_PROMPT_FILE=""
 fi
 
 if [[ ! -f "${MODEL_MAP_FILE}" && -f "/usr/local/share/agent-sandbox/codex-model-map.json" ]]; then

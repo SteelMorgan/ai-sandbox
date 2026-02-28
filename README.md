@@ -1,231 +1,199 @@
-# ai-agent-sandbox-devcontainer
+# AI Agent Sandbox
 
-Цель: изолированная песочница для ИИ-агента на Docker Desktop/WSL2 **без маунтов хостовых дисков**. Код и состояние живут в Docker volume, источник истины — git.
+Шаблон devcontainer для запуска AI-агентов (Claude Code, Codex CLI) в изолированной Docker-среде. Код живёт в Docker volume, не на хосте — агент может ставить зависимости, ломать окружение и пересоздавать его без последствий для машины.
 
-## Быстрый старт (volume workspace)
+## Архитектура
 
-1. Установить https://marketplace.cursorapi.com/items/?itemName=anysphere.remote-containers или его аналог (anysphere.remote-containers, dev-containers)
+```
+Cursor / VSCode
+      │
+      ▼
+Dev Container (Docker volume workspace)
+      │
+      ├── Claude Code (cc)  ──┐
+      └── Codex CLI (cx)    ──┴──► 9Router (LLM proxy) ──► любой LLM API
+```
 
-Заполнить secrets/.env, выполнить scripts/prepare-secrets.ps1, что бы сгенеировать секреты
+**Ключевые принципы:**
+- Workspace в Docker volume — выживает при rebuild контейнера
+- Git как источник истины — репозитории клонируются внутрь volume
+- Секреты через Docker secrets — не в образе, не в env хоста
 
-2. Убедись, что Docker Desktop запущен и есть volume для песочницы (по умолчанию `agent-work-sandbox-lite`, см. `.devcontainer/docker-compose.yml`):
+## Требования
 
-- `docker volume ls`
-- если нет: `docker volume create agent-work-sandbox-lite`
+- Docker Desktop (Windows/Mac) или Docker Engine (Linux)
+- VS Code или Cursor с расширением [Dev Containers](https://marketplace.cursorapi.com/items/?itemName=anysphere.remote-containers)
+- `gh` CLI, авторизованный под твоим аккаунтом (на хосте)
 
-3. Открой этот репозиторий через Dev Containers так, чтобы workspace жил в volume.
+## Быстрый старт
 
-Ключевые файлы:
+**1. Заполни секреты**
 
-- `.devcontainer/devcontainer.json` — **lite** профиль (sudo, **без** docker.sock)
-- `.devcontainer/devcontainer.docker.json` — lite + **docker.sock** (опасно, но иногда нужно)
-- `.devcontainer/devcontainer.network-none.json` — restricted + **network none**
-- `.devcontainer/devcontainer.onec.json` — профиль **с платформой 1С + активацией** (тяжёлый)
+```
+secrets/.env          ← скопируй из secrets/.env.example и заполни
+secrets/cc_api_key    ← API-ключ для Claude Code / 9Router
+secrets/github_token  ← GitHub PAT (scope: repo, read:org)
+```
 
+Сгенерируй Docker secrets из файлов:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\prepare-secrets.ps1
+```
 
+**2. Создай volume для workspace**
 
-## Новый контейнер под новый проект (1 проект = 1 volume)
+```bash
+docker volume create agent-work-sandbox-lite
+```
 
-Схема: для каждого проекта создаёшь отдельную папку с этим шаблоном (только конфиги), а код потом клонируешь внутрь volume уже из контейнера.
+> Volume объявлен как `external: true` в docker-compose.yml — Docker не создаёт его автоматически и упадёт с ошибкой если volume отсутствует. Данные в volume сохраняются при rebuild контейнера.
 
-В новой папке запусти:
+**3. Открой в Dev Containers**
 
-- `powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap-project.ps1 -CreateVolume`
+Открой папку репозитория через **Dev Containers: Reopen in Container**. Workspace смонтируется из volume в `/workspaces/work`.
 
-Скрипт:
+**4. Проверь агентов**
 
-- берёт имя текущей папки → делает slug
-- правит `.devcontainer/docker-compose*.yml` (уникальные `container_name` и volume)
-- создаёт Docker volume `agent-work-<slug>` (если включён `-CreateVolume`)
+```bash
+cx --version                                    # Codex CLI
+cx exec --skip-git-repo-check "Reply with: ok" # тест вызова модели
+cc --version                                    # Claude Code
+```
 
-## Один контейнер — много проектов (лайтовый режим)
+## AI-инструменты
 
-Это нормальная схема, если тебе не нужна жёсткая изоляция по зависимостям/кэшу.
+### Claude Code — `cc` / `сс`
 
-Правило использования (если хочешь **один** контейнер на все проекты):
+Запускается через wrapper `~/bin/claude-safe.sh`. Настройки берутся из `.devcontainer/.env` и секрета `cc_api_key`.
 
-- Поднимай devcontainer **только один раз** из этой песочницы (`SandBox`).
-- Все проекты держи **внутри контейнера** в `/workspaces/work` (это внешний volume `agent-work-sandbox-lite`, он сохраняется между пересборками).
-- Открывай/переключай проекты **внутри уже запущенного контейнера** (не создавая новый devcontainer):
-  - либо через **Attach to Running Container** к `ai-agent-sandbox`
-  - либо через **File → Open Folder…** на нужную подпапку внутри `/workspaces/work`
+**Настройка 9Router для Claude Code**
 
-### Как хранить репозитории, чтобы не было свалки
+Claude Code обращается к моделям по фиксированным именам: `opus`, `sonnet`, `haiku`. В 9Router нужно создать **Combo** с точно таким именем, и прописать в него один или несколько реальных бэкендов:
 
-Держи каждый репозиторий в отдельной подпапке внутри volume:
+| Combo name | Что подставить |
+|---|---|
+| `opus` | Любая мощная модель (Claude Opus, GPT-5, Gemini Pro и др.) |
+| `sonnet` | Сбалансированная модель |
+| `haiku` | Быстрая / дешёвая модель |
 
-- `/workspaces/work/repoA`
-- `/workspaces/work/repoB`
+В Combo можно указать любой провайдер, однако наиболее стабильное поведение достигается с оригинальными моделями Anthropic — Claude изначально обучен управлять инструментами и форматировать вывод в своём нативном формате.
 
-### Как переключать “проект” в Cursor / VSC
+### Codex CLI — `cx` / `сч`
 
-После подключения к контейнеру:
+Запускается через wrapper `~/bin/codex-safe.sh`. При старте контейнера скрипт `codex-bootstrap.sh` генерирует `~/.codex/config.toml` с профилями моделей.
 
-- **File → Open Folder…** → выбираешь нужную папку репо (например `/workspaces/work/repoB`)
+> Алиасы `cc`/`сс` и `cx`/`сч` — латиница и кириллица соответственно, оба варианта работают.
 
-Cursor будет работать **только** с открытой папкой, даже если в контейнере лежат другие репозитории.
+**Настройка 9Router для Codex**
 
-### Практические правила
+Codex использует кастомный список моделей, который bootstrap собирает из двух источников:
 
-- Не клонируй репы в корень `/workspaces/work` без подпапок — потом будет боль.
-- `gh auth` и `~/.gitconfig` общие на контейнер: это удобно, но помни, что identity/токены одни на всё окружение.
+**1. `codex-model-map.json` — маппинг на официальные модели Codex**
 
-## Автосоздание репозитория + ветка agent + инвайт бота
+Сопоставляет имена в 9Router (`cx/*`) с оригинальными slug-ами из [официального репозитория Codex](https://github.com/openai/codex/blob/main/codex-rs/core/models.json). Благодаря этому bootstrap заполняет метаданные модели (контекстное окно, описание, возможности) так же, как в оригинале.
 
-Скрипт: `scripts/provision-repo.ps1`
+```json
+{
+  "cx/gpt-5.3-codex": "codex-1",
+  "cx/gpt-5.1-codex-mini": "codex-mini-latest"
+}
+```
 
-Важно:
+**2. `codex-model-overrides.json` — ручные описания для моделей без upstream**
 
-- Запускай его там, где `gh` залогинен **под твоим основным аккаунтом** (обычно хост), потому что репо создаётся от имени текущего пользователя `gh`.
-- Бот `steel-code-agent` должен **принять инвайт** после выполнения скрипта.
+Для моделей, которых нет в официальном списке (например `ag/gemini-3.1-pro-high`), поля задаются вручную. Описание всех полей: [`docs/codex-model-catalog-fields.md`](docs/codex-model-catalog-fields.md)
 
-Пример:
+**Системный промт для Gemini**
 
-- **Просто создать репо**:
-  - `powershell -ExecutionPolicy Bypass -File .\scripts\provision-repo.ps1 -RepoName my-private-repo -AddReadme`
-- **Создать репо и сразу залить “скелет проекта”** (например `.cursor/skills`, `docs/`, конфиги):
-  - подготовь папку-шаблон (пример: `templates/repo-seed` в этом репозитории)
-  - `powershell -ExecutionPolicy Bypass -File .\scripts\provision-repo.ps1 -RepoName my-private-repo -SeedPath .\templates\repo-seed`
+Для моделей, в имени которых содержится `gemini`, bootstrap при старте контейнера скачивает системный промт напрямую из официального репозитория Codex:
 
-## Публичить репо + включить защиту main (после публикации)
+[`codex-rs/core/prompt_with_apply_patch_instructions.md`](https://github.com/openai/codex/blob/main/codex-rs/core/prompt_with_apply_patch_instructions.md)
 
-Отдельный скрипт: `scripts/publish-and-protect.ps1`
+### Переменные окружения `.devcontainer/.env`
 
-Зачем отдельный:
-- на GitHub Free защита ветки для **private** репо часто упирается в 403, поэтому мы не пытаемся ставить protection на этапе provisioning
-- когда/если репо станет public (или ты апгрейдишь план) — включаешь protection одной командой
+| Переменная | Назначение |
+|---|---|
+| `OPENAI_BASE_URL` | URL 9Router (или другого прокси) |
+| `CODEX_MODEL` | Модель по умолчанию для Codex |
+| `CODEX_MODELS` | Список моделей → генерирует профили в `config.toml` |
+| `CODEX_MODEL_PROVIDER_ID/NAME` | Имя провайдера в Codex UI |
+| `CODEX_MODEL_MAP_FILE` | JSON с маппингом `cx/*` → upstream slug |
+| `CODEX_MODEL_OVERRIDES_FILE` | JSON с ручными описаниями моделей (`ag/*` и др.) |
+| `CODEX_GEMINI_PROMPT_FILE` | Системный промт для моделей Gemini |
 
-Пример:
-- `powershell -ExecutionPolicy Bypass -File .\scripts\publish-and-protect.ps1 -RepoName my-private-repo -RequiredApprovals 1`
+## Профили контейнера
 
-## Предохранитель от пуша в main/master (локальный git hook)
+| Файл | Когда использовать |
+|---|---|
+| `devcontainer.json` | Стандартный (sudo, без docker.sock) |
+| `devcontainer.docker.json` | + доступ к Docker Desktop (⚠️ фактически root на хосте) |
+| `devcontainer.network-none.json` | Без доступа к сети (максимальная изоляция) |
 
-Так как в некоторых планах GitHub для приватных репо защита ветки может быть **Not enforced**, в devcontainer ставится **локальный** `pre-push` hook:
+## Сценарии использования
 
-- блокирует прямой `git push` в `main`/`master`
-- ставится в **образ** (root-owned, read/exec only), чтобы агент не мог “случайно” стереть/переписать
+### Один контейнер — много проектов
 
-Важно:
+Поднимаешь `SandBox` один раз. Все репозитории клонируешь внутрь `/workspaces/work/` как подпапки. Переключаешься через **File → Open Folder…** внутри уже запущенного контейнера или **Attach to Running Container**.
 
-- это **не** серверная защита, а “ремень безопасности” внутри контейнера
-- если пуш делают с другой машины/окружения — этот хук не сработает
-- намеренно обойти хук тоже можно (например, подменить `core.hooksPath`), без server-side enforcement это неизбежно
+```
+/workspaces/work/
+  ├── project-a/
+  └── project-b/
+```
 
-## Операционные команды для агента
+### Отдельный контейнер на проект
 
-Внутри репозитория (в контейнере):
+Копируешь шаблон в новую папку, запускаешь:
 
-Рекомендованный workflow:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap-project.ps1 -CreateVolume
+```
 
-- на каждую задачу создать сабветку **от `agent**`:
-  - `agent-task-branch fix-auth`
-- после тестов слить сабветку в `agent` и запушить `agent`:
-  - `agent-merge-to-agent`
-- PR `agent → main` — **только по явной команде пользователя**:
-  - `agent-open-pr`
+Скрипт создаёт уникальный volume и правит `docker-compose*.yml`.
 
-Примечание:
+## Управление репозиториями
 
-- `agent-new-branch` оставлен как вспомогательная команда, но основной процесс — через `agent-task-branch`/`agent-merge-to-agent`.
+**Создать репо + пригласить бота:**
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\provision-repo.ps1 -RepoName my-repo -AddReadme
+```
 
-## Claude Code и Codex в devcontainer
+**Создать репо с seed-шаблоном** (`.cursor/skills`, `docs/` и т.п.):
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\provision-repo.ps1 -RepoName my-repo -SeedPath .\templates\repo-seed
+```
 
-Позволяет переключить Claude CLI и Codex CLI на "свои" сервера llm-моделей. Также добавляет аллиасы для ENG & RU раскладок. Bootstrap настраивается автоматически при старте контейнера. Параметры настраиваются в .devcontainer\.env
+**Сделать репо публичным + защита main:**
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\publish-and-protect.ps1 -RepoName my-repo
+```
 
-ВАЖНО: Claude и Codex, каждый заточен на работу только со "своими" моделями и о существовании других он не знает. В 9Router настраиваем "Combos" для каждой модели (выполняет функцию маппинга), например:
+## Git workflow для агента
 
-Combo name = Opus
-Combo model 1: ag/claude-opus-4-6-thinking
-Combo model 2: cc/claude-opus-4-6-thinking
-Можно смаппить таким образом с любой моделью хоть GPT, хоть Z.ai
+Внутри контейнера доступны команды:
 
-Claude CLI "знает" Опус под именем "Opus" и именно по нему обращается к нашему серверу. Сервер найдет по имени нужный Комбо и будет использовать модели/модель из него.
+| Команда | Действие |
+|---|---|
+| `agent-task-branch fix-auth` | Создать ветку от `agent` |
+| `agent-merge-to-agent` | Слить текущую ветку в `agent` |
+| `agent-open-pr` | Открыть PR `agent → main` (только по явной команде) |
 
-Codex работает по другому: ему можно указать свой кастомный список моделей. Файл формируется сам по двум источникам:
-1. devcontainer\codex-model-map.json в котором указано сопоставление моделей из 9Router (или вашего другого прокси) и модель CODEX. Это нужно для того, что бы по моделям кодекс заполнить такое же описание, как в оригинале (смотрим файл моделей кодекса на гитхабе).
-2. devcontainer\codex-model-overrides.json - эти модели будут взяты "как есть", поля вы заполняете ручками (или просите агента) - описание полей в \docs\codex-model-catalog-fields.md. 
-3. Для моделей, в названии которых есть "gemini" системный промт будет взят из файла docs\gemini-promt.md (системный промт был получен из Антигравити и "скрещен" с промтом от GPT - взяты инструкции, описывающие работу в контексте Codex CLI, сохранены инструкции антиграва по созданию веб-страниц)
+## Безопасность
 
-- запускается из `.devcontainer/postCreateCommand.sh`
-- использует не-секретные параметры из `.devcontainer/.env`
-- использует секрет `cc_api_key` из Docker secrets (`/run/secrets/cc_api_key`)
+- **pre-push hook** в образе блокирует прямой push в `main`/`master` изнутри контейнера
+- **docker.sock** не пробрасывается по умолчанию
+- **sudo** доступен — sandbox по умолчанию «широкая» (агент может ставить пакеты)
 
-Что настраивается:
-
-- **Codex**: `.devcontainer/codex-bootstrap.sh` генерирует `~/.codex/config.toml` и `~/.codex/.env`, а также wrapper `~/bin/codex-safe.sh`
-- **Claude Code**: helper и status line настраиваются в `.devcontainer/postCreateCommand.sh`
-
-Алиасы:
-
-- `cx` / `сч` → `~/bin/codex-safe.sh`
-- `cc` / `сс` → `~/bin/claude-safe.sh`
-
-Алиасы для Claude (`cc` и `сс`) выглядят почти одинаково, но это разные символы:
-
-- `cc` — обе буквы **латиница** (`c` + `c`)
-- `сс` — обе буквы **кириллица** (`с` + `с`)
-
-Визуально их легко перепутать. Если не срабатывает один вариант, попробуйте второй.
-
-Для удобства:
-
-- на английской раскладке обычно набирают `cc`
-- на русской раскладке обычно набирают `сс`
-- оба алиаса запускают один и тот же wrapper `~/bin/claude-safe.sh`
-
-То же правило для Codex:
-
-- `cx` — латиница
-- `сч` — кириллица
-- оба алиаса запускают `~/bin/codex-safe.sh`
-
-Разница `cx` и `codex`:
-
-- `cx` гарантированно подгружает ключ из `~/.codex/.env` через wrapper
-- `codex` читает `~/.codex/config.toml`, но без ключа в окружении может уйти в auth flow/401
-
-Если bootstrap не сгенерировал конфиг:
-
-- при пустом `OPENAI_BASE_URL` и одновременно пустых `CODEX_MODEL`/`CODEX_MODELS` Codex-конфиг пропускается
-- в этом случае `codex` работает с дефолтными настройками CLI
-- `cx` остается wrapper-алиасом, но без сгенерированных файлов поведение почти как у `codex` (если нет старых файлов в `~/.codex`)
-
-Практический чек после rebuild:
-
-1. `source ~/.bashrc`
-2. `ls -la ~/.codex`
-3. `cx --version`
-4. `cx exec --skip-git-repo-check "Reply with: ok"`
+Детали: [`docs/security-hardening.md`](docs/security-hardening.md)
 
 ## Документация
 
-- `docs/devcontainer-limits.md` — ограничения (Electron, pids_limit), базовый набор
-- `docs/github-bot-setup.md` — бот + PAT (минимальные права)
-- `docs/branch-protection.md` — защита `main/master` (PR-only)
-- `docs/auth-inside-container.md` — логин `gh`/git identity внутри контейнера + тестовый push в `agent/*`
-- `docs/agent-git-reglament.md` — ветки/PR/восстановление
-- `docs/security-hardening.md` — усиление безопасности (опционально)
-
-
-
-
-## Sudo и доступ к Docker (опциональные профили)
-
-По умолчанию песочница “широкая” (под концепт *“агент может ставить что угодно внутри песочницы”*):
-
-- `sudo` доступен (без `no-new-privileges`).
-- docker socket **не** проброшен по умолчанию.
-
-Если нужно сузить права:
-
-- **Ограниченный + без сети**: `.devcontainer/devcontainer.network-none.json`
-
-Если нужен доступ к Docker Desktop из песочницы:
-
-- **Профиль с docker.sock**: `.devcontainer/devcontainer.docker.json`
-
-Важно:
-
-- доступ к `/var/run/docker.sock` = фактически root-доступ к Docker host (можно снести контейнеры/volumes).
-- “запинить” контейнеры от удаления на уровне Docker CLI надёжно нельзя; это только дисциплина/процедуры.
-
+| Файл | Содержимое |
+|---|---|
+| [`docs/auth-inside-container.md`](docs/auth-inside-container.md) | `gh` auth и git identity внутри контейнера |
+| [`docs/agent-git-reglament.md`](docs/agent-git-reglament.md) | Ветки, PR, восстановление |
+| [`docs/branch-protection.md`](docs/branch-protection.md) | Защита main/master |
+| [`docs/github-bot-setup.md`](docs/github-bot-setup.md) | Бот + PAT |
+| [`docs/devcontainer-limits.md`](docs/devcontainer-limits.md) | Ограничения (Electron, pids_limit) |
+| [`docs/security-hardening.md`](docs/security-hardening.md) | Усиление безопасности |
+| [`docs/codex-model-catalog-fields.md`](docs/codex-model-catalog-fields.md) | Поля модели для Codex |
