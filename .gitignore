@@ -7,6 +7,15 @@ secrets/*
 backups/
 .cache/
 
+# Local tool state directories
+.agent/
+.agents/
+.claude/
+.cursor/
+.gemini/
+.kiro/
+.opencode/
+
 **/.env
 **/.env.local
 **/.env.*.local
