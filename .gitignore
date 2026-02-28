@@ -1,0 +1,14 @@
+# Local secrets and overrides
+secrets/*
+!secrets/.env.example
+!secrets/README.md
+
+# Local backup archives
+backups/
+.cache/
+
+**/.env
+**/.env.local
+**/.env.*.local
+
+!.devcontainer/.env
