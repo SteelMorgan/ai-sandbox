@@ -30,21 +30,41 @@ fi
 # GitHub auth bootstrap (idempotent). Uses /run/secrets/github_token when present.
 bash /usr/local/share/agent-sandbox/gh-auth-bootstrap.sh || true
 
+# ---------------------------------------------------------------------------
 # Codex bootstrap (idempotent). Uses /run/secrets/cc_api_key when present.
+# Prefers workspace-local copy; falls back to image-baked copy.
+# ---------------------------------------------------------------------------
 if [[ "${CUSTOM_OPENAI_ENABLED:-0}" == "1" ]]; then
-  if [[ -f "/workspaces/work/.devcontainer/codex-bootstrap.sh" ]]; then
-    bash /workspaces/work/.devcontainer/codex-bootstrap.sh || bash /usr/local/share/agent-sandbox/codex-bootstrap.sh || true
+  if [[ -f "/workspaces/work/.devcontainer/cli-agents/codex/bootstrap.sh" ]]; then
+    bash /workspaces/work/.devcontainer/cli-agents/codex/bootstrap.sh \
+      || bash /usr/local/share/agent-sandbox/cli-agents/codex/bootstrap.sh || true
   else
-    bash /usr/local/share/agent-sandbox/codex-bootstrap.sh || true
+    bash /usr/local/share/agent-sandbox/cli-agents/codex/bootstrap.sh || true
   fi
 else
   echo "[postCreate] CUSTOM_OPENAI_ENABLED is not 1 — skipping Codex custom backend bootstrap."
 fi
 
-# Configure Claude Code status line from local tool copied into image.
+# ---------------------------------------------------------------------------
+# Gemini CLI bootstrap (idempotent). Uses /run/secrets/cc_api_key when present.
+# ---------------------------------------------------------------------------
+if [[ "${CUSTOM_OPENAI_ENABLED:-0}" == "1" ]]; then
+  if [[ -f "/workspaces/work/.devcontainer/cli-agents/gemini/bootstrap.sh" ]]; then
+    bash /workspaces/work/.devcontainer/cli-agents/gemini/bootstrap.sh \
+      || bash /usr/local/share/agent-sandbox/cli-agents/gemini/bootstrap.sh || true
+  else
+    bash /usr/local/share/agent-sandbox/cli-agents/gemini/bootstrap.sh || true
+  fi
+else
+  echo "[postCreate] CUSTOM_OPENAI_ENABLED is not 1 — skipping Gemini CLI bootstrap."
+fi
+
+# ---------------------------------------------------------------------------
+# Claude Code — configure status line.
+# ---------------------------------------------------------------------------
 apply_claude_statusline() {
   local settings_file="${HOME}/.claude/settings.json"
-  local statusline_js="/usr/local/share/agent-sandbox/tools/statusline.js"
+  local statusline_js="/usr/local/share/agent-sandbox/cli-agents/claude/tools/statusline.js"
 
   if [ ! -f "${statusline_js}" ]; then
     echo "[postCreate] statusline.js not found at ${statusline_js} — skipping statusLine config."
@@ -79,10 +99,12 @@ NODEJS
 # Global pre-push hook is installed by entrypoint (root-owned, locked-down).
 # (Still bypassable by a determined user; this is an anti-footgun.)
 
-# Configure Claude Code for custom backend if helper + secret are available.
+# ---------------------------------------------------------------------------
+# Claude Code — configure custom backend via helper.mjs.
+# ---------------------------------------------------------------------------
 if [[ "${CUSTOM_OPENAI_ENABLED:-0}" == "1" ]]; then
-  helper="/workspaces/work/.devcontainer/cc-custom-helper.mjs"
-  helper_fallback="/usr/local/share/agent-sandbox/cc-custom-helper.mjs"
+  helper="/workspaces/work/.devcontainer/cli-agents/claude/helper.mjs"
+  helper_fallback="/usr/local/share/agent-sandbox/cli-agents/claude/helper.mjs"
   api_key_file="/run/secrets/cc_api_key"
   base_url="${OPENAI_BASE_URL:-}"
   validate_mode="${CC_HELPER_VALIDATE_MODE:-anthropic}"
@@ -149,4 +171,3 @@ fi
 
 # Apply statusLine AFTER helper so it is never overwritten.
 apply_claude_statusline
-
