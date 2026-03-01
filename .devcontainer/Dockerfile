@@ -68,6 +68,7 @@ COPY postCreateCommand.sh /usr/local/share/agent-sandbox/postCreateCommand.sh
 COPY entrypoint.sh        /usr/local/share/agent-sandbox/entrypoint.sh
 COPY gh-auth-bootstrap.sh /usr/local/share/agent-sandbox/gh-auth-bootstrap.sh
 
+COPY cli-agents/claude/bootstrap.sh          /usr/local/share/agent-sandbox/cli-agents/claude/bootstrap.sh
 COPY cli-agents/claude/helper.mjs            /usr/local/share/agent-sandbox/cli-agents/claude/helper.mjs
 COPY cli-agents/claude/tools/claude-safe.sh  /usr/local/share/agent-sandbox/cli-agents/claude/tools/claude-safe.sh
 COPY cli-agents/claude/tools/statusline.js   /usr/local/share/agent-sandbox/cli-agents/claude/tools/statusline.js
@@ -88,6 +89,7 @@ RUN sed -i 's/\r$//' \
       /usr/local/share/agent-sandbox/postCreateCommand.sh \
       /usr/local/share/agent-sandbox/entrypoint.sh \
       /usr/local/share/agent-sandbox/gh-auth-bootstrap.sh \
+      /usr/local/share/agent-sandbox/cli-agents/claude/bootstrap.sh \
       /usr/local/share/agent-sandbox/cli-agents/codex/bootstrap.sh \
       /usr/local/share/agent-sandbox/cli-agents/gemini/bootstrap.sh \
       /usr/local/share/agent-sandbox/cli-agents/claude/tools/claude-safe.sh \
@@ -107,6 +109,7 @@ RUN sed -i 's/\r$//' \
       /usr/local/share/agent-sandbox/postCreateCommand.sh \
       /usr/local/share/agent-sandbox/entrypoint.sh \
       /usr/local/share/agent-sandbox/gh-auth-bootstrap.sh \
+      /usr/local/share/agent-sandbox/cli-agents/claude/bootstrap.sh \
       /usr/local/share/agent-sandbox/cli-agents/codex/bootstrap.sh \
       /usr/local/share/agent-sandbox/cli-agents/gemini/bootstrap.sh \
       /usr/local/share/agent-sandbox/cli-agents/claude/tools/claude-safe.sh
