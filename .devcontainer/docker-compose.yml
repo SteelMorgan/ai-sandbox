@@ -8,9 +8,8 @@ services:
     user: "0:0"
     volumes:
       - agent-work-sandbox-lite:/workspaces/work
-    environment:
-      GH_CONFIG_DIR: /workspaces/work/.config/gh
-      GIT_CONFIG_GLOBAL: /workspaces/work/.gitconfig
+      # Persist entire vscode home across rebuilds (CLI configs, sessions, history, gh auth, etc.)
+      - agent-home-global:/home/vscode
     env_file:
       - .env
     secrets:
@@ -26,10 +25,10 @@ services:
 volumes:
   agent-work-sandbox-lite:
     external: true
+  agent-home-global:
 
 secrets:
   cc_api_key:
     file: ../secrets/cc_api_key
   github_token:
     file: ../secrets/github_token
-

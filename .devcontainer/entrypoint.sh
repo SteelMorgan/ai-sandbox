@@ -12,6 +12,12 @@ if [ -d "/workspaces/work" ]; then
   chmod 0777 /workspaces/work/.config /workspaces/work/.githooks || true
 fi
 
+# Ensure /home/vscode is owned by vscode when backed by a named volume
+# (Docker volumes come in as root:root 755 on first use).
+if id -u vscode >/dev/null 2>&1; then
+  chown vscode:vscode /home/vscode 2>/dev/null || true
+fi
+
 # Optional: if docker.sock is mounted, allow vscode to talk to Docker without sudo.
 # WARNING: access to docker.sock is effectively root-equivalent on the Docker host.
 if [ -S "/var/run/docker.sock" ]; then

@@ -1,17 +1,21 @@
 <#
 .SYNOPSIS
-  Бэкап docker volume клиентской песочницы в ./backups и добавление backups/ в .gitignore.
+  Бэкап одного или нескольких docker volume песочницы в ./backups.
 
 .USAGE
   Запусти из корня репозитория:
-    powershell -ExecutionPolicy Bypass -File .\scripts\backup-sandbox-volume.ps1
+    powershell -ExecutionPolicy Bypass -File .scriptsackup-sandbox-volume.ps1
 
-  (опционально) другой volume:
-    powershell -ExecutionPolicy Bypass -File .\scripts\backup-sandbox-volume.ps1 -VolumeName "agent-work-sandbox-lite"
+  Конкретный volume:
+    powershell -ExecutionPolicy Bypass -File .scriptsackup-sandbox-volume.ps1 -VolumeNames "agent-work-sandbox-lite"
+
+  Несколько volume:
+    powershell -ExecutionPolicy Bypass -File .scriptsackup-sandbox-volume.ps1 -VolumeNames "agent-work-sandbox-lite","agent-home-global"
 #>
 
 param(
-  [string]$VolumeName = "agent-work-sandbox-lite",
+  # Список volume для бэкапа. По умолчанию — все volume этой песочницы.
+  [string[]]$VolumeNames = @("agent-work-sandbox-lite", "agent-home-global"),
   [string]$BackupsDirName = "backups"
 )
 
@@ -32,7 +36,7 @@ $needsAppend = $true
 
 if (Test-Path -LiteralPath $gitignorePath) {
   $raw = Get-Content -LiteralPath $gitignorePath -Raw
-  if ($raw -match "(?m)^\Q$ignoreLine\E\s*$") {
+  if ($raw -match "(?m)^Q$ignoreLineEs*$") {
     $needsAppend = $false
   }
 } else {
@@ -46,35 +50,48 @@ if ($needsAppend) {
   [System.IO.File]::AppendAllText($gitignorePath, $textToAppend, $utf8bom)
 }
 
-& docker volume inspect $VolumeName *> $null
-if ($LASTEXITCODE -ne 0) {
-  throw "Docker volume '$VolumeName' не найден. Проверь имя: docker volume ls"
-}
-
-$ts = Get-Date -Format "yyyyMMdd_HHmmss"
-$archiveName = "${VolumeName}_${ts}.tar.gz"
-
 $backupsDirForDocker = $backupsDir.Replace("\", "/")
+$ts = Get-Date -Format "yyyyMMdd_HHmmss"
+$anyFailed = $false
 
-$dockerArgs = @(
-  "run", "--rm",
-  "-v", "${VolumeName}:/v:ro",
-  "-v", "${backupsDirForDocker}:/backup",
-  "busybox", "sh", "-lc",
-  "tar -czf /backup/$archiveName -C /v ."
-)
+foreach ($VolumeName in $VolumeNames) {
+  & docker volume inspect $VolumeName *> $null
+  if ($LASTEXITCODE -ne 0) {
+    Write-Warning "Docker volume '$VolumeName' не найден — пропускаю. Проверь: docker volume ls"
+    $anyFailed = $true
+    continue
+  }
 
-Write-Host "Делаю бэкап volume '$VolumeName' -> $BackupsDirName\$archiveName"
-& docker @dockerArgs
-if ($LASTEXITCODE -ne 0) {
-  throw "Бэкап не выполнен (docker run завершился с кодом $LASTEXITCODE)."
+  $archiveName = "${VolumeName}_${ts}.tar.gz"
+
+  $dockerArgs = @(
+    "run", "--rm",
+    "-v", "${VolumeName}:/v:ro",
+    "-v", "${backupsDirForDocker}:/backup",
+    "busybox", "sh", "-lc",
+    "tar -czf /backup/$archiveName -C /v ."
+  )
+
+  Write-Host "Делаю бэкап volume '$VolumeName' -> $BackupsDirName$archiveName"
+  & docker @dockerArgs
+  if ($LASTEXITCODE -ne 0) {
+    Write-Warning "Бэкап volume '$VolumeName' не выполнен (docker run завершился с кодом $LASTEXITCODE)."
+    $anyFailed = $true
+    continue
+  }
+
+  $archivePath = Join-Path $backupsDir $archiveName
+  if (-not (Test-Path -LiteralPath $archivePath)) {
+    Write-Warning "Архив не найден после бэкапа: $archivePath"
+    $anyFailed = $true
+    continue
+  }
+
+  $item = Get-Item -LiteralPath $archivePath
+  Write-Host "Готово: $($item.FullName)"
+  Write-Host ("Размер: {0:N0} байт" -f $item.Length)
 }
 
-$archivePath = Join-Path $backupsDir $archiveName
-if (-not (Test-Path -LiteralPath $archivePath)) {
-  throw "Архив не найден после бэкапа: $archivePath"
+if ($anyFailed) {
+  throw "Один или несколько volume не удалось сохранить. Смотри предупреждения выше."
 }
-
-$item = Get-Item -LiteralPath $archivePath
-Write-Host "Готово: $($item.FullName)"
-Write-Host ("Размер: {0:N0} байт" -f $item.Length)
