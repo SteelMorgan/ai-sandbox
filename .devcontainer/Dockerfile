@@ -77,7 +77,6 @@ COPY cli-agents/codex/model-map.json         /usr/local/share/agent-sandbox/cli-
 COPY cli-agents/codex/model-overrides.json   /usr/local/share/agent-sandbox/cli-agents/codex/model-overrides.json
 
 COPY cli-agents/gemini/bootstrap.sh          /usr/local/share/agent-sandbox/cli-agents/gemini/bootstrap.sh
-COPY cli-agents/gemini/prompt.md             /usr/local/share/agent-sandbox/cli-agents/gemini/prompt.md
 
 COPY bin/agent-new-branch      /usr/local/bin/agent-new-branch
 COPY bin/agent-task-branch     /usr/local/bin/agent-task-branch
