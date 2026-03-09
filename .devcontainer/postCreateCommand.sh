@@ -27,6 +27,9 @@ if command -v git >/dev/null 2>&1; then
   git config --global --add safe.directory "*" >/dev/null 2>&1 || true
 fi
 
+# Python dependencies (idempotent, no rebuild required)
+pip3 install --quiet --break-system-packages "python-xlib==0.33" "Pillow" "tiktoken" 2>/dev/null || pip3 install --quiet "python-xlib==0.33" "Pillow" "tiktoken" || true
+
 # GitHub auth bootstrap (idempotent). Uses /run/secrets/github_token when present.
 bash /usr/local/share/agent-sandbox/gh-auth-bootstrap.sh || true
 
@@ -49,29 +52,17 @@ run_bootstrap() {
 # Claude Code bootstrap (idempotent).
 # Sets up custom backend, statusLine, cc alias / symlink.
 # ---------------------------------------------------------------------------
-if [[ "${CUSTOM_OPENAI_ENABLED:-0}" == "1" ]]; then
-  run_bootstrap cli-agents/claude/bootstrap.sh
-else
-  echo "[postCreate] CUSTOM_OPENAI_ENABLED is not 1 — skipping Claude custom backend bootstrap."
-fi
+run_bootstrap cli-agents/claude/bootstrap.sh
 
 # ---------------------------------------------------------------------------
 # Codex bootstrap (idempotent). Uses /run/secrets/cc_api_key when present.
 # ---------------------------------------------------------------------------
-if [[ "${CUSTOM_OPENAI_ENABLED:-0}" == "1" ]]; then
-  run_bootstrap cli-agents/codex/bootstrap.sh
-else
-  echo "[postCreate] CUSTOM_OPENAI_ENABLED is not 1 — skipping Codex custom backend bootstrap."
-fi
+run_bootstrap cli-agents/codex/bootstrap.sh
 
 # ---------------------------------------------------------------------------
 # Gemini CLI bootstrap (idempotent). Uses /run/secrets/cc_api_key when present.
 # ---------------------------------------------------------------------------
-if [[ "${CUSTOM_OPENAI_ENABLED:-0}" == "1" ]]; then
-  run_bootstrap cli-agents/gemini/bootstrap.sh
-else
-  echo "[postCreate] CUSTOM_OPENAI_ENABLED is not 1 — skipping Gemini CLI bootstrap."
-fi
+run_bootstrap cli-agents/gemini/bootstrap.sh
 
 # Global pre-push hook is installed by entrypoint (root-owned, locked-down).
 # (Still bypassable by a determined user; this is an anti-footgun.)

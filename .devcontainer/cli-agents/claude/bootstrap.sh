@@ -2,7 +2,7 @@
 # Configures Claude Code for the current user.
 #
 # Reads non-secret settings from env vars (injected via .devcontainer/.env):
-#   OPENAI_BASE_URL                    — base URL of the OpenAI-compatible server
+#   _CLAUDE_BASE_URL                   — base URL of the Claude-compatible server
 #   CC_HELPER_VALIDATE_MODE            — validate mode (anthropic / openai)
 #   CC_HELPER_MODEL                    — model alias (sonnet / opus / haiku)
 #   CC_HELPER_ALIAS_OPUS/SONNET/HAIKU  — model name overrides
@@ -47,20 +47,55 @@ API_KEY=""
 SECRET_FILE="/run/secrets/cc_api_key"
 if [[ -f "${SECRET_FILE}" && -s "${SECRET_FILE}" ]]; then
   API_KEY="$(cat "${SECRET_FILE}")"
-  echo "[claude-bootstrap] API key read from ${SECRET_FILE}"
 fi
 
-BASE_URL="${OPENAI_BASE_URL:-}"
+BASE_URL="${_CLAUDE_BASE_URL:-}"
 
-if [[ -z "${BASE_URL}" ]]; then
-  echo "[claude-bootstrap] OPENAI_BASE_URL is not set — skipping Claude custom backend config." >&2
+STATE_DIR="${HOME}/.agent-sandbox"
+STATE_FILE="${STATE_DIR}/bootstrap-state.env"
+mkdir -p "${STATE_DIR}"
+
+read_state_var() {
+  local key="$1"
+  [[ -f "${STATE_FILE}" ]] || return 0
+  awk -F= -v k="$key" '$1==k{print substr($0, index($0, "=")+1)}' "${STATE_FILE}" | tail -n 1
+}
+
+write_state_var() {
+  local key="$1"
+  local value="$2"
+  local tmp
+  tmp="$(mktemp)"
+  if [[ -f "${STATE_FILE}" ]]; then
+    awk -F= -v k="$key" '$1!=k{print}' "${STATE_FILE}" > "${tmp}"
+  fi
+  printf "%s=%s\n" "$key" "$value" >> "${tmp}"
+  mv -f "${tmp}" "${STATE_FILE}"
+}
+
+PREV_MODE="$(read_state_var CLAUDE_MODE || true)"
+DESIRED_MODE="native"
+if [[ "${CUSTOM_CLAUDE_ENABLED:-0}" == "1" && -n "${BASE_URL}" ]]; then
+  DESIRED_MODE="custom"
+fi
+
+if [[ "${DESIRED_MODE}" == "native" ]]; then
+  if [[ -f "${HELPER_MJS}" ]] && command -v node >/dev/null 2>&1; then
+    node "${HELPER_MJS}" unset >/dev/null 2>&1 || echo "[claude-bootstrap] WARNING: failed to unset helper-managed Claude env" >&2
+  fi
+fi
+
+if [[ "${CUSTOM_CLAUDE_ENABLED:-0}" == "1" && -z "${BASE_URL}" ]]; then
+  echo "[claude-bootstrap] _CLAUDE_BASE_URL is not set — skipping Claude custom backend config." >&2
   # Still set up wrapper and alias even without custom backend
 fi
+
+write_state_var CLAUDE_MODE "${DESIRED_MODE}"
 
 # ---------------------------------------------------------------------------
 # Configure custom backend via helper.mjs (if enabled)
 # ---------------------------------------------------------------------------
-if [[ -n "${BASE_URL}" ]]; then
+if [[ "${DESIRED_MODE}" == "custom" && -n "${BASE_URL}" ]]; then
   if [[ ! -s "${SECRET_FILE}" ]]; then
     echo "[claude-bootstrap] WARNING: /run/secrets/cc_api_key is empty or missing" >&2
   fi
