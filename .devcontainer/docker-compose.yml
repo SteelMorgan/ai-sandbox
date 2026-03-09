@@ -26,6 +26,8 @@ volumes:
   agent-work-sandbox-lite:
     external: true
   agent-home-global:
+    name: agent-home-global
+    external: true
 
 secrets:
   cc_api_key:

@@ -40,13 +40,17 @@ secrets/github_token  ← GitHub PAT (scope: repo, read:org)
 powershell -ExecutionPolicy Bypass -File .\scripts\prepare-secrets.ps1
 ```
 
-**2. Создай volume для workspace**
+**2. Создай external volume перед развёрткой контейнера**
 
-```bash
-docker volume create agent-work-sandbox-lite
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\ensure-external-volumes.ps1
 ```
 
-> Volume объявлен как `external: true` в docker-compose.yml — Docker не создаёт его автоматически и упадёт с ошибкой если volume отсутствует. Данные в volume сохраняются при rebuild контейнера.
+Скрипт проверяет и при необходимости создаёт:
+- `agent-work-sandbox-lite`
+- `agent-home-global`
+
+> Эти volume объявлены как `external: true` в `docker-compose.yml`. Docker не создаёт их автоматически и поднимет контейнер с ошибкой, если их нет.
 
 **3. Открой в Dev Containers**
 
