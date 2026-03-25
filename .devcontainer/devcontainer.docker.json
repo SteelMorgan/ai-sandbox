@@ -9,6 +9,6 @@
   "remoteUser": "vscode",
   "updateRemoteUserUID": false,
   "postCreateCommand": "bash /usr/local/share/agent-sandbox/postCreateCommand.sh",
-  "postStartCommand": "bash /usr/local/share/agent-sandbox/postCreateCommand.sh"
+  "postStartCommand": "bash /usr/local/share/agent-sandbox/postStartCommand.sh"
 }
 

@@ -12,10 +12,27 @@ if [ -d "/workspaces/work" ]; then
   chmod 0777 /workspaces/work/.config /workspaces/work/.githooks || true
 fi
 
-# Ensure /home/vscode is owned by vscode when backed by a named volume
-# (Docker volumes come in as root:root 755 on first use).
+# ---------------------------------------------------------------------------
+# Give vscode full ownership of everything the agent might need to modify.
+# This is a sandbox container — the agent must be able to do anything inside.
+# ---------------------------------------------------------------------------
 if id -u vscode >/dev/null 2>&1; then
-  chown vscode:vscode /home/vscode 2>/dev/null || true
+  # Home directory (may be a named volume, comes as root:root on first use)
+  chown -R vscode:vscode /home/vscode 2>/dev/null || chown vscode:vscode /home/vscode 2>/dev/null || true
+
+  # Global npm: allow vscode to install/update/remove packages without sudo.
+  # npm needs write access to both the modules dir and the bin dir (for symlink renames).
+  chown -R vscode:vscode /usr/lib/node_modules 2>/dev/null || true
+  chmod 0777 /usr/bin 2>/dev/null || true
+
+  # /usr/local/bin — system-wide symlinks and wrappers
+  chown -R vscode:vscode /usr/local/bin 2>/dev/null || true
+
+  # /usr/local/share/agent-sandbox — bootstrap scripts (except githooks, see below)
+  chown -R vscode:vscode /usr/local/share/agent-sandbox 2>/dev/null || true
+
+  # /tmp — ensure no leftover root-owned files block the agent
+  find /tmp -maxdepth 1 -user root -name 'claude*' -exec chown vscode:vscode {} + 2>/dev/null || true
 fi
 
 # Optional: if docker.sock is mounted, allow vscode to talk to Docker without sudo.

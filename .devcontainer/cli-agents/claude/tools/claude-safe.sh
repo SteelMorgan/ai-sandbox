@@ -6,6 +6,19 @@ if ! command -v claude >/dev/null 2>&1; then
   exit 127
 fi
 
+# Prevent container-level or shell-level env from forcing Claude into a custom backend.
+# Native/custom mode is managed by ~/.claude/settings.json via claude bootstrap.
+unset \
+  ANTHROPIC_API_KEY \
+  ANTHROPIC_AUTH_TOKEN \
+  ANTHROPIC_BASE_URL \
+  ANTHROPIC_MODEL \
+  ANTHROPIC_DEFAULT_OPUS_MODEL \
+  ANTHROPIC_DEFAULT_SONNET_MODEL \
+  ANTHROPIC_DEFAULT_HAIKU_MODEL \
+  API_TIMEOUT_MS \
+  CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC
+
 kill_descendants() {
   local parent_pid="$1"
   local child

@@ -66,6 +66,7 @@ RUN mkdir -p /usr/local/share/agent-sandbox/cli-agents/claude/tools \
              /usr/local/share/agent-sandbox/cli-agents/gemini
 
 COPY postCreateCommand.sh /usr/local/share/agent-sandbox/postCreateCommand.sh
+COPY postStartCommand.sh  /usr/local/share/agent-sandbox/postStartCommand.sh
 COPY entrypoint.sh        /usr/local/share/agent-sandbox/entrypoint.sh
 COPY gh-auth-bootstrap.sh /usr/local/share/agent-sandbox/gh-auth-bootstrap.sh
 
@@ -88,6 +89,7 @@ COPY bin/agent-open-pr         /usr/local/bin/agent-open-pr
 # Strip Windows CRLF line endings
 RUN sed -i 's/\r$//' \
       /usr/local/share/agent-sandbox/postCreateCommand.sh \
+      /usr/local/share/agent-sandbox/postStartCommand.sh \
       /usr/local/share/agent-sandbox/entrypoint.sh \
       /usr/local/share/agent-sandbox/gh-auth-bootstrap.sh \
       /usr/local/share/agent-sandbox/cli-agents/claude/bootstrap.sh \
@@ -108,6 +110,7 @@ RUN sed -i 's/\r$//' \
       /usr/local/bin/agent-open-pr \
   && chmod +x \
       /usr/local/share/agent-sandbox/postCreateCommand.sh \
+      /usr/local/share/agent-sandbox/postStartCommand.sh \
       /usr/local/share/agent-sandbox/entrypoint.sh \
       /usr/local/share/agent-sandbox/gh-auth-bootstrap.sh \
       /usr/local/share/agent-sandbox/cli-agents/claude/bootstrap.sh \
