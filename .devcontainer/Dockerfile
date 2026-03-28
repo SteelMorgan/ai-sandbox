@@ -36,6 +36,9 @@ RUN set -eux; \
 RUN echo "vscode ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/vscode \
   && chmod 0440 /etc/sudoers.d/vscode
 
+# Add vscode to staff and root groups — maximizes filesystem access in sandbox.
+RUN usermod -aG staff,root vscode 2>/dev/null || true
+
 # GitHub CLI (gh)
 RUN set -eux; \
   mkdir -p /etc/apt/keyrings; \
@@ -126,6 +129,17 @@ RUN npm install -g @openai/codex
 
 # Gemini CLI for agent workflows inside the sandbox.
 RUN npm install -g @google/gemini-cli
+
+# Pre-grant vscode ownership of all global npm/system dirs so the agent can
+# update packages at runtime without sudo (entrypoint re-applies on every start).
+RUN chown -R vscode:vscode /usr/lib/node_modules \
+  && mkdir -p /usr/local/lib/node_modules \
+  && chown -R vscode:vscode /usr/local/lib \
+  && chown -R vscode:vscode /usr/local/bin \
+  && chown -R vscode:vscode /usr/local/share \
+  && chown -R vscode:vscode /usr/local/include \
+  && chown vscode:vscode /usr/local \
+  && chmod 0777 /usr/bin
 
 ENTRYPOINT ["/usr/local/share/agent-sandbox/entrypoint.sh"]
 

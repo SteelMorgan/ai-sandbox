@@ -21,6 +21,11 @@ services:
     pids_limit: 4096
     mem_limit: 8g
     cpus: "4.0"
+    # Full container privileges for the agent — this is a sandbox, not production.
+    privileged: true
+    security_opt:
+      - seccomp:unconfined
+      - apparmor:unconfined
 
 volumes:
   agent-work-sandbox-lite:

@@ -20,19 +20,54 @@ if id -u vscode >/dev/null 2>&1; then
   # Home directory (may be a named volume, comes as root:root on first use)
   chown -R vscode:vscode /home/vscode 2>/dev/null || chown vscode:vscode /home/vscode 2>/dev/null || true
 
-  # Global npm: allow vscode to install/update/remove packages without sudo.
-  # npm needs write access to both the modules dir and the bin dir (for symlink renames).
+  # -----------------------------------------------------------------------
+  # Give vscode full ownership of ALL directories that npm/pip/tools need.
+  # This is a sandbox — the agent must be able to install, update, and
+  # remove any global package (claude, codex, gemini, etc.) without sudo.
+  # -----------------------------------------------------------------------
+
+  # Global npm (NodeSource): /usr/lib/node_modules
   chown -R vscode:vscode /usr/lib/node_modules 2>/dev/null || true
-  chmod 0777 /usr/bin 2>/dev/null || true
 
-  # /usr/local/bin — system-wide symlinks and wrappers
+  # Global npm alternative prefix: /usr/local/lib/node_modules
+  mkdir -p /usr/local/lib/node_modules 2>/dev/null || true
+  chown -R vscode:vscode /usr/local/lib/node_modules 2>/dev/null || true
+  chown -R vscode:vscode /usr/local/lib 2>/dev/null || true
+
+  # Bin directories — npm symlinks go here
   chown -R vscode:vscode /usr/local/bin 2>/dev/null || true
+  chmod 0777 /usr/bin 2>/dev/null || true
+  chmod 0777 /usr/local/bin 2>/dev/null || true
 
-  # /usr/local/share/agent-sandbox — bootstrap scripts (except githooks, see below)
-  chown -R vscode:vscode /usr/local/share/agent-sandbox 2>/dev/null || true
+  # /usr/local/share — agent-sandbox + anything tools might put here
+  chown -R vscode:vscode /usr/local/share 2>/dev/null || true
+
+  # /usr/local/include — native modules (node-gyp) may write headers here
+  chown -R vscode:vscode /usr/local/include 2>/dev/null || true
+
+  # /usr/local as a whole — catch-all for any /usr/local/* paths
+  chown vscode:vscode /usr/local 2>/dev/null || true
+
+  # npm cache (system-level, user-level is already in ~)
+  mkdir -p /usr/local/share/.cache 2>/dev/null || true
+  chown -R vscode:vscode /usr/local/share/.cache 2>/dev/null || true
+
+  # pip / python site-packages — allow pip install --break-system-packages
+  chown -R vscode:vscode /usr/lib/python3*/dist-packages 2>/dev/null || true
+  chown -R vscode:vscode /usr/local/lib/python3* 2>/dev/null || true
+
+  # /opt — some tools install here
+  chown -R vscode:vscode /opt 2>/dev/null || true
 
   # /tmp — ensure no leftover root-owned files block the agent
   find /tmp -maxdepth 1 -user root -name 'claude*' -exec chown vscode:vscode {} + 2>/dev/null || true
+  chmod 1777 /tmp 2>/dev/null || true
+
+  # /var/tmp — some tools use this for large temp files
+  chmod 1777 /var/tmp 2>/dev/null || true
+
+  # Add vscode to root group for any remaining edge cases
+  usermod -aG root vscode 2>/dev/null || true
 fi
 
 # Optional: if docker.sock is mounted, allow vscode to talk to Docker without sudo.
