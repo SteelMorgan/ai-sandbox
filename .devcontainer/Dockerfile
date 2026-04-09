@@ -16,16 +16,18 @@ RUN apt-get update \
     openssh-client \
     xclip \
     xsel \
-    x11-xserver-utils \
     python3 \
     python3-pip \
     python3-venv \
     tmux \
     sudo \
-    # Tauri 2.x build essentials
+    # Build essentials (Tauri, Strapi/better-sqlite3, native npm modules)
     build-essential \
     pkg-config \
     gcc \
+    g++ \
+    make \
+    libsqlite3-dev \
     # Tauri 2.x GUI dependencies (WebKitGTK 4.1)
     libgtk-3-dev \
     libwebkit2gtk-4.1-dev \
@@ -40,6 +42,22 @@ RUN apt-get update \
     libgdk-pixbuf-2.0-dev \
     libatk1.0-dev \
     libsoup-3.0-dev \
+    # Playwright / Chromium runtime dependencies
+    libnss3 \
+    libatk-bridge2.0-0 \
+    libatspi2.0-0 \
+    libdrm2 \
+    libgbm1 \
+    libx11-xcb1 \
+    libxcb1 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxkbcommon0 \
+    libxrandr2 \
+    libxshmfence1 \
+    libasound2t64 \
+    xvfb \
   && rm -rf /var/lib/apt/lists/*
 
 # Node.js 22 LTS via NodeSource (required: @google/gemini-cli needs Node >= 20).
@@ -105,6 +123,7 @@ COPY cli-agents/codex/model-overrides.json   /usr/local/share/agent-sandbox/cli-
 
 COPY cli-agents/gemini/bootstrap.sh          /usr/local/share/agent-sandbox/cli-agents/gemini/bootstrap.sh
 
+COPY bin/clipboard-watch.sh    /usr/local/bin/clipboard-watch
 COPY bin/agent-new-branch      /usr/local/bin/agent-new-branch
 COPY bin/agent-task-branch     /usr/local/bin/agent-task-branch
 COPY bin/agent-merge-to-agent  /usr/local/bin/agent-merge-to-agent
@@ -123,11 +142,13 @@ RUN sed -i 's/\r$//' \
       /usr/local/share/agent-sandbox/cli-agents/claude/tools/statusline.js
 
 RUN sed -i 's/\r$//' \
+      /usr/local/bin/clipboard-watch \
       /usr/local/bin/agent-new-branch \
       /usr/local/bin/agent-task-branch \
       /usr/local/bin/agent-merge-to-agent \
       /usr/local/bin/agent-open-pr \
   && chmod 0555 \
+      /usr/local/bin/clipboard-watch \
       /usr/local/bin/agent-new-branch \
       /usr/local/bin/agent-task-branch \
       /usr/local/bin/agent-merge-to-agent \

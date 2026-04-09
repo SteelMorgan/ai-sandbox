@@ -118,5 +118,16 @@ EOF
   git config --global --unset-all core.hooksPath >/dev/null 2>&1 || true
 fi
 
+# Start Xvfb virtual X server for clipboard support (xclip needs a DISPLAY).
+# CLI tools (Claude Code, Codex CLI) use xclip to paste images from clipboard.
+if command -v Xvfb >/dev/null 2>&1; then
+  Xvfb :99 -screen 0 1x1x24 -nolisten tcp &
+  sleep 0.5
+  # Watch bind-mounted PNG and load into X11 clipboard on change.
+  if [ -x /usr/local/bin/clipboard-watch ]; then
+    DISPLAY=:99 su -s /bin/bash -c '/usr/local/bin/clipboard-watch &' vscode
+  fi
+fi
+
 exec "$@"
 

@@ -27,15 +27,19 @@ Dev Container (Docker volume workspace)
 
 ## Быстрый старт
 
-**0. Настрой X11 для clipboard (вставка скриншотов)**
+**0. Вставка скриншотов в CLI-агентов (clipboard sync)**
 
-CLI-агенты (Claude Code, Codex CLI) в контейнере используют X11 для доступа к буферу обмена. Без X-сервера на хосте вставка изображений (Ctrl+V) не работает.
+CLI-агенты (Claude Code, Codex CLI) работают в терминале контейнера и не имеют прямого доступа к буферу обмена Windows. Для вставки скриншотов используется двухкомпонентная схема:
 
+- **Хост (Windows):** трей-приложение следит за буфером обмена и при появлении нового изображения сохраняет его как PNG в `%TEMP%\cb-x11-sync\` (bind-mounted в контейнер как read-only)
+- **Контейнер:** фоновый watcher обнаруживает новый файл и загружает его в X11 clipboard (Xvfb) через xclip — CLI-агенты читают оттуда при Ctrl+V
+
+Установка (один раз):
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\setup-xserver.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\setup-clipboard-sync.ps1
 ```
 
-Скрипт устанавливает [VcXsrv](https://github.com/marchaesen/vcxsrv), добавляет его в автозагрузку Windows, создаёт правило Firewall и запускает X-сервер. Контейнер уже настроен на подключение через `DISPLAY=host.docker.internal:0.0`.
+Скрипт создаёт ярлык на рабочем столе и добавляет приложение в автозагрузку Windows. После этого: **Win+Shift+S** (скриншот) -> **Ctrl+V** в Claude CLI / Codex CLI.
 
 **1. Заполни секреты**
 
@@ -215,3 +219,4 @@ powershell -ExecutionPolicy Bypass -File .\scripts\publish-and-protect.ps1 -Repo
 | [`docs/devcontainer-limits.md`](docs/devcontainer-limits.md) | Ограничения (Electron, pids_limit) |
 | [`docs/security-hardening.md`](docs/security-hardening.md) | Усиление безопасности |
 | [`docs/codex-model-catalog-fields.md`](docs/codex-model-catalog-fields.md) | Поля модели для Codex |
+| [`docs/clipboard-sync-setup.md`](docs/clipboard-sync-setup.md) | Clipboard Sync — настройка вставки скриншотов |
