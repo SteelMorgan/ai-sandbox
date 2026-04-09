@@ -27,6 +27,16 @@ Dev Container (Docker volume workspace)
 
 ## Быстрый старт
 
+**0. Настрой X11 для clipboard (вставка скриншотов)**
+
+CLI-агенты (Claude Code, Codex CLI) в контейнере используют X11 для доступа к буферу обмена. Без X-сервера на хосте вставка изображений (Ctrl+V) не работает.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\setup-xserver.ps1
+```
+
+Скрипт устанавливает [VcXsrv](https://github.com/marchaesen/vcxsrv), добавляет его в автозагрузку Windows, создаёт правило Firewall и запускает X-сервер. Контейнер уже настроен на подключение через `DISPLAY=host.docker.internal:0.0`.
+
 **1. Заполни секреты**
 
 ```

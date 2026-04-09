@@ -10,6 +10,8 @@ services:
       - agent-work-sandbox-lite:/workspaces/work
       # Persist entire vscode home across rebuilds (CLI configs, sessions, history, gh auth, etc.)
       - agent-home-global:/home/vscode
+    environment:
+      - DISPLAY=host.docker.internal:0.0
     env_file:
       - .env
     secrets:

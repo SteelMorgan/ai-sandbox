@@ -14,6 +14,9 @@ RUN apt-get update \
     git \
     gnupg \
     openssh-client \
+    xclip \
+    xsel \
+    x11-xserver-utils \
     python3 \
     python3-pip \
     python3-venv \
