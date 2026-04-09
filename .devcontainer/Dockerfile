@@ -22,6 +22,24 @@ RUN apt-get update \
     python3-venv \
     tmux \
     sudo \
+    # Tauri 2.x build essentials
+    build-essential \
+    pkg-config \
+    gcc \
+    # Tauri 2.x GUI dependencies (WebKitGTK 4.1)
+    libgtk-3-dev \
+    libwebkit2gtk-4.1-dev \
+    libglib2.0-dev \
+    # Tauri plugins & features
+    libappindicator3-dev \
+    librsvg2-dev \
+    libssl-dev \
+    # Implicit Tauri deps (explicit for reproducibility)
+    libcairo2-dev \
+    libpango1.0-dev \
+    libgdk-pixbuf-2.0-dev \
+    libatk1.0-dev \
+    libsoup-3.0-dev \
   && rm -rf /var/lib/apt/lists/*
 
 # Node.js 22 LTS via NodeSource (required: @google/gemini-cli needs Node >= 20).
@@ -123,6 +141,12 @@ RUN sed -i 's/\r$//' \
       /usr/local/share/agent-sandbox/cli-agents/codex/bootstrap.sh \
       /usr/local/share/agent-sandbox/cli-agents/gemini/bootstrap.sh \
       /usr/local/share/agent-sandbox/cli-agents/claude/tools/claude-safe.sh
+
+# Rust toolchain (installed for vscode user so cargo is available in terminals).
+USER vscode
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/home/vscode/.cargo/bin:${PATH}"
+USER root
 
 # Claude Code CLI for agent workflows inside the sandbox.
 RUN npm install -g @anthropic-ai/claude-code
