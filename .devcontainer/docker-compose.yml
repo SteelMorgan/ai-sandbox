@@ -6,6 +6,12 @@ services:
       dockerfile: Dockerfile
     # Use root as the container process user so entrypoint can chmod the volume.
     user: "0:0"
+    # PID 1 must be a real init to reap orphaned children. Without this,
+    # CMD `sleep infinity` becomes PID 1 and does not wait() on reparented
+    # processes — Playwright/Chromium/Node zombies accumulate and exhaust
+    # pids_limit. `init: true` makes Docker run tini as PID 1 above the
+    # entrypoint, which reaps the whole subtree automatically.
+    init: true
     volumes:
       - agent-work-sandbox-lite:/workspaces/work
       # Persist entire vscode home across rebuilds (CLI configs, sessions, history, gh auth, etc.)
