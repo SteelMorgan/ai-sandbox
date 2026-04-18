@@ -66,6 +66,25 @@ if id -u vscode >/dev/null 2>&1; then
   # /var/tmp — some tools use this for large temp files
   chmod 1777 /var/tmp 2>/dev/null || true
 
+  # -----------------------------------------------------------------------
+  # Clean stale CLI-agent update locks. The /home/vscode volume is
+  # persistent, so a lock left behind by an interrupted `claude update`
+  # (or codex/gemini equivalents) survives container restarts and blocks
+  # all future updates with "Another instance is currently performing an
+  # update". No agent is running at entrypoint time — any lock here is
+  # stale by definition.
+  # -----------------------------------------------------------------------
+  vscode_home="$(getent passwd vscode | cut -d: -f6)"
+  if [[ -n "${vscode_home}" && -d "${vscode_home}" ]]; then
+    find "${vscode_home}/.claude" -maxdepth 3 \
+      \( -name '*.lock' -o -name 'update.lock' -o -name '.update-lock' \) \
+      -type f -delete 2>/dev/null || true
+    rm -rf "${vscode_home}/.claude/locks" 2>/dev/null || true
+    find "${vscode_home}/.codex" "${vscode_home}/.gemini" -maxdepth 3 \
+      -name '*.lock' -type f -delete 2>/dev/null || true
+  fi
+  find /tmp -maxdepth 2 -name 'claude-*.lock' -type f -delete 2>/dev/null || true
+
   # Add vscode to root group for any remaining edge cases
   usermod -aG root vscode 2>/dev/null || true
 fi
